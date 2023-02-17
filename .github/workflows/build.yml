@@ -1,21 +1,42 @@
-name: Build and Publish Alpine Rootfs
+name: Alpine Rootfs Build
+
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: '0 0 15 * *'
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-rootfs:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v2
-      - name: Build Docker Image
-        run: docker build . -t my-alpine-image
-      - name: Create Rootfs Tarball
-        run: docker run --rm my-alpine-image tar czvf /github/workspace/rootfs.tar.gz -C / .
 
-      - name: Upload Rootfs Tarball
-        uses: actions/upload-artifact@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build rootfs
+        run: |
+          git clone git://git.alpinelinux.org/aports
+          cd aports/scripts
+          ./mkimage.sh -s main -r -t alpine-rootfs:latest
+
+      - name: Export rootfs as tarball
+        run: |
+          mkdir -p rootfs
+          container_id=$(docker create alpine-rootfs:latest)
+          docker export "$container_id" | tar -C rootfs -xz
+          docker rm "$container_id"
+
+      - name: Add rootfs to branch
+        uses: EndBug/add-and-commit@v7
         with:
-          name: rootfs
-          path: rootfs.tar.gz
+          message: "Update rootfs"
+          directory: "rootfs"
+          branch: "main"
+          author_name: "GitHub Actions"
+          author_email: "actions@github.com"
+          commit_message: "Update rootfs on ${{ github.sha }}"

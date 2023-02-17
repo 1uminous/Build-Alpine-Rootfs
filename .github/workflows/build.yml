@@ -6,17 +6,16 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build Docker Image
+        run: docker build . -t my-alpine-image
+      - name: Create Rootfs Tarball
+        run: docker run --rm my-alpine-image tar czvf /github/workspace/rootfs.tar.gz -C / .
 
-    - name: Build Alpine Rootfs
-      run: |
-        docker run --rm -v $(pwd):/build -w /build alpine:latest sh -c "apk update && apk add alpine-sdk && setup-alpine -f ./setup.conf -s --profile minimal && tar czvf rootfs.tar.gz -C alpine/ ."
-
-    - name: Upload Rootfs Tarball
-      uses: actions/upload-artifact@v2
-      with:
-        name: rootfs
-        path: rootfs.tar.gz
+      - name: Upload Rootfs Tarball
+        uses: actions/upload-artifact@v2
+        with:
+          name: rootfs
+          path: rootfs.tar.gz

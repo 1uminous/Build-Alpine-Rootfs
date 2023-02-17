@@ -3,31 +3,28 @@ on:
   schedule:
     - cron: '0 0 15 * *'
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Install debootstrap and qemu-user-static
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y debootstrap qemu-user-static
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y debootstrap
-
-      - name: Create Alpine rootfs
-        run: |
-          sudo debootstrap --variant=minbase --components=main,community --include=ca-certificates alpine alpine
-          sudo chroot alpine apk add --no-cache bash
-          sudo chroot alpine /bin/sh -c "echo 'nameserver 8.8.8.8' > /etc/resolv.conf"
-          sudo chroot alpine /bin/sh -c "apk update && apk upgrade && rm -rf /var/cache/apk/*"
-
-      - name: Compress rootfs
-        run: |
-          sudo tar -czf rootfs.tar.gz -C alpine .
-
-      - name: Save artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: rootfs.tar.gz
-          path: rootfs.tar.gz
+    - name: Create rootfs with debootstrap
+      run: |
+        sudo debootstrap --variant=minbase --components=main,community alpine alpine
+        sudo cp /usr/bin/qemu-arm-static alpine/usr/bin/
+    
+    - name: Create tar.gz archive of rootfs
+      run: |
+        cd alpine && tar -czvf ../rootfs.tar.gz *
+    
+    - name: Save rootfs.tar.gz artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: rootfs.tar.gz
+        path: rootfs.tar.gz

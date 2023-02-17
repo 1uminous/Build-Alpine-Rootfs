@@ -1,21 +1,39 @@
-name: Build Alpine Rootfs
+name: Build and Publish Alpine Rootfs
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: '0 0 15 * *'
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install Alpine
-        run: apk add alpine-sdk
-      - name: Setup Alpine Rootfs
-        run: sudo setup-alpine -f ./setup.conf -s  --profile=minimal
-      - name: Create Rootfs Tarball
-        run: tar czvf rootfs.tar.gz -C alpine/ .
-      - name: Upload Rootfs Tarball
-        uses: actions/upload-artifact@v2
-        with:
-          name: rootfs
-          path: rootfs.tar.gz
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Install Alpine
+      run: |
+        sudo apk update
+        sudo apk add alpine-sdk
+
+    - name: Setup Alpine Rootfs
+      run: sudo setup-alpine -f ./setup.conf -s  --profile=minimal
+
+    - name: Create Rootfs Tarball
+      run: tar czvf rootfs.tar.gz -C alpine/ .
+
+    - name: Commit Changes
+      run: |
+        git config --global user.email "you@example.com"
+        git config --global user.name "Your Name"
+        git add rootfs.tar.gz
+        git commit -m "Add latest rootfs.tar.gz"
+        git push
+
+    - name: Upload Rootfs Tarball
+      uses: actions/upload-artifact@v2
+      with:
+        name: rootfs
+        path: rootfs.tar.gz

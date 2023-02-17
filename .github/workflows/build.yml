@@ -1,42 +1,32 @@
-name: Alpine Rootfs Build
-
+name: Build Alpine RootFS
 on:
   schedule:
     - cron: '0 0 15 * *'
-  workflow_dispatch:
-
 jobs:
-  build-rootfs:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Build rootfs
+      - name: Install dependencies
         run: |
-          git clone git://git.alpinelinux.org/aports
-          cd aports/scripts
-          ./mkimage.sh -s main -r -t alpine-rootfs:latest
+          sudo apt-get update
+          sudo apt-get install -y debootstrap
 
-      - name: Export rootfs as tarball
+      - name: Create Alpine rootfs
         run: |
-          mkdir -p rootfs
-          container_id=$(docker create alpine-rootfs:latest)
-          docker export "$container_id" | tar -C rootfs -xz
-          docker rm "$container_id"
+          sudo debootstrap --variant=minbase --components=main,community --include=ca-certificates alpine alpine
+          sudo chroot alpine apk add --no-cache bash
+          sudo chroot alpine /bin/sh -c "echo 'nameserver 8.8.8.8' > /etc/resolv.conf"
+          sudo chroot alpine /bin/sh -c "apk update && apk upgrade && rm -rf /var/cache/apk/*"
 
-      - name: Add rootfs to branch
-        uses: EndBug/add-and-commit@v7
+      - name: Compress rootfs
+        run: |
+          sudo tar -czf rootfs.tar.gz -C alpine .
+
+      - name: Save artifact
+        uses: actions/upload-artifact@v2
         with:
-          message: "Update rootfs"
-          directory: "rootfs"
-          branch: "main"
-          author_name: "GitHub Actions"
-          author_email: "actions@github.com"
-          commit_message: "Update rootfs on ${{ github.sha }}"
+          name: rootfs.tar.gz
+          path: rootfs.tar.gz

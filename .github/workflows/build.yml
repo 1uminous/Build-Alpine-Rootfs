@@ -2,27 +2,18 @@ name: Build and Publish Alpine Rootfs
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: '0 0 15 * *'
 
 jobs:
   build:
-    runs-on: alpine:latest
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Install Alpine
+    - name: Build Alpine Rootfs
       run: |
-        apk update
-        apk add alpine-sdk
-
-    - name: Setup Alpine Rootfs
-      run: setup-alpine -f ./setup.conf -s  --profile=minimal
-
-    - name: Create Rootfs Tarball
-      run: tar czvf rootfs.tar.gz -C alpine/ .
+        docker run --rm -v $(pwd):/build -w /build alpine:latest sh -c "apk update && apk add alpine-sdk && setup-alpine -f ./setup.conf -s --profile minimal && tar czvf rootfs.tar.gz -C alpine/ ."
 
     - name: Upload Rootfs Tarball
       uses: actions/upload-artifact@v2

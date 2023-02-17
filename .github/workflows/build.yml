@@ -15,11 +15,11 @@ jobs:
 
     - name: Install Alpine
       run: |
-        sudo apk update
-        sudo apk add alpine-sdk
+        apk update
+        apk add alpine-sdk
 
     - name: Setup Alpine Rootfs
-      run: sudo setup-alpine -f ./setup.conf -s  --profile=minimal
+      run: setup-alpine -f ./setup.conf -s  --profile=minimal
 
     - name: Create Rootfs Tarball
       run: tar czvf rootfs.tar.gz -C alpine/ .

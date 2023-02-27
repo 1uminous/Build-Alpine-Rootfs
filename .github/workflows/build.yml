@@ -9,22 +9,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install debootstrap and qemu-user-static
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y debootstrap qemu-user-static
+      - name: Install required packages
+        run: sudo apt-get update && sudo apt-get install -y curl xz-utils tar
 
-    - name: Create rootfs with debootstrap
-      run: |
-        sudo debootstrap --variant=minbase --components=main,community alpine alpine
-        sudo cp /usr/bin/qemu-arm-static alpine/usr/bin/
-    
-    - name: Create tar.gz archive of rootfs
-      run: |
-        cd alpine && tar -czvf ../rootfs.tar.gz *
-    
-    - name: Save rootfs.tar.gz artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: rootfs.tar.gz
-        path: rootfs.tar.gz
+      - name: Download Alpine release
+        run: |
+          VERSION=$(curl -s http://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/$(uname -m)/latest-releases.yaml | grep -m 1 -oP "version: \K.*")
+          curl -LO http://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/$(uname -m)/alpine-minirootfs-$VERSION-$(uname -m).tar.gz
+
+      - name: Create artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: rootfs.tar.gz
+          path: alpine-minirootfs-*.tar.gz

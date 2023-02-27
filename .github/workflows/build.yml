@@ -22,9 +22,9 @@ jobs:
 
       - name: Create Rootfs
         run: |
-          sudo debootstrap --arch=amd64 --variant=minbase --components=main --include=ca-certificates,apk-tools,openssh-client stable ./alpine
+          sudo debootstrap --arch=amd64 --variant=minbase  --include=ca-certificates,apk-tools,openssh-client alpine ./alpine https://dl-cdn.alpinelinux.org/alpine/latest-stable/main/
           sudo chroot ./alpine sh -c "apk add --no-cache bash"
-          sudo tar -C ./alpine -czvf rootfs.tar.gz .
+          sudo tar -C ./alpine -czvf rootfs.tar.gz .     
 
       - name: Create Release
         id: create_release

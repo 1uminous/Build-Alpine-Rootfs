@@ -1,68 +1,54 @@
-name: Create Alpine Rootfs
+name: Build Alpine Rootfs
 
 on:
   schedule:
-    - cron: '0 0 15 * *'
+    - cron: "0 0 15 * *"
   workflow_dispatch:
 
-env:
-  ALPINE_VERSION: "latest-stable"
-  ROOTFS_FILENAME: "rootfs.tar.gz"
-
 jobs:
-  build-rootfs:
+  build-alpine:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repo
+      - name: Checkout Code
         uses: actions/checkout@v2
-      
-      - name: Setup Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static debootstrap
-          sudo cp /usr/bin/qemu-*-static .
-      
+
       - name: Install Alpine scripts for debootstrap
         run: |
-          sudo apk update && sudo apk add debootstrap
+          sudo apt-get update && sudo apt-get install -y debootstrap wget
           sudo wget -qO /usr/share/debootstrap/scripts/alpine https://raw.githubusercontent.com/alpinelinux/alpine-chroot-install/v0.13.0/alpine-chroot-install
           sudo chmod +x /usr/share/debootstrap/scripts/alpine
 
       - name: Create Rootfs
         run: |
-          mkdir rootfs
-          sudo debootstrap --arch=amd64 --foreign --variant=minbase --include=iproute2,iputils,inetutils,findutils,util-linux,busybox alpine rootfs
-          sudo cp ./qemu-*-static rootfs/usr/bin/
-          sudo chroot rootfs /debootstrap/debootstrap --second-stage
-          sudo chroot rootfs apk add --no-cache tzdata
-          sudo rm rootfs/etc/apk/repositories
-          echo "http://dl-cdn.alpinelinux.org/alpine/${ALPINE_VERSION}/main" >> rootfs/etc/apk/repositories
-          echo "http://dl-cdn.alpinelinux.org/alpine/${ALPINE_VERSION}/community" >> rootfs/etc/apk/repositories
-          sudo chroot rootfs apk update
-          sudo chroot rootfs apk upgrade --no-cache
-          sudo chroot rootfs sh -c "apk add --no-cache curl && curl -fL https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.3/s6-overlay-amd64.tar.gz | tar xzf - -C /"
-          sudo tar czf $ROOTFS_FILENAME -C rootfs .
+          sudo debootstrap --variant=minbase --components=main --include=ca-certificates,apk-tools,openssh-client stable ./alpine
+          sudo chroot ./alpine sh -c "apk add --no-cache bash"
+          sudo tar -C ./alpine -czvf rootfs.tar.gz .
 
       - name: Create Release
-        uses: actions/create-release@v1
+        id: create_release
+        uses: actions/create-release@v1.0.7
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_GITGUB_TOKEN }}
         with:
-          tag_name: ${{ env.ALPINE_VERSION }}
-          release_name: ${{ env.ALPINE_VERSION }}
-          body: "Latest Alpine Linux ${ALPINE_VERSION} rootfs"
+          tag_name: v$(date +'%Y%m%d')
+          release_name: Alpine rootfs release $(date +'%Y%m%d')
           draft: false
           prerelease: false
-          token: ${{ secrets.MY_GITHUB_TOKEN }}
 
       - name: Upload Asset
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_GITGUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.ROOTFS_FILENAME }}
-          asset_name: ${{ env.ROOTFS_FILENAME }}
-          asset_content_type: application/gzip
-          token: ${{ secrets.MY_GITHUB_TOKEN }}
-  
-      - name: Cleanup
+          asset_path: ./rootfs.tar.gz
+          asset_name: rootfs.tar.gz
+          asset_content_type: application/x-gzip
+
+      - name: Delete Release and Tag
+        if: success()
         run: |
-          rm -rf rootfs
-          rm -f $ROOTFS_FILENAME
+          git push --delete origin $(git tag --points-at HEAD)
+          git tag --delete $(git tag --points-at HEAD)
+          hub release delete $(git describe --tags)

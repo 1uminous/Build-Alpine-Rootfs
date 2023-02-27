@@ -22,3 +22,26 @@ jobs:
         with:
           name: rootfs.tar.gz
           path: alpine-minirootfs-*.tar.gz
+
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.VERSION }}
+          release_name: Alpine rootfs v${{ env.VERSION }}
+          body: |
+            This is the latest stable version of Alpine rootfs.
+          draft: false
+          prerelease: false
+        id: create_release
+
+      - name: Upload asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./rootfs.tar.gz
+          asset_name: rootfs.tar.gz
+          asset_content_type: application/gzip

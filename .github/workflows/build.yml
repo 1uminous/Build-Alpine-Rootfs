@@ -27,7 +27,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1.0.7
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.MY_GITGUB_TOKEN }}
         with:
@@ -37,7 +37,7 @@ jobs:
           prerelease: false
 
       - name: Upload Asset
-        uses: actions/upload-release-asset@v1.0.2
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.MY_GITGUB_TOKEN }}
         with:

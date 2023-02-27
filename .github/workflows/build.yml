@@ -17,6 +17,12 @@ jobs:
           VERSION=$(curl -s http://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/$(uname -m)/latest-releases.yaml | grep -m 1 -oP "version: \K.*")
           curl -LO http://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/$(uname -m)/alpine-minirootfs-$VERSION-$(uname -m).tar.gz
 
+      - name: Create artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: rootfs.tar.gz
+          path: alpine-minirootfs-*.tar.gz
+          
       - name: Create GitHub release
         uses: actions/create-release@v1
         env:
@@ -30,12 +36,11 @@ jobs:
           prerelease: false
         id: create_release
 
-      - name: Upload asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+      - name: List files in working directory
+        run: ls -R
+        working-directory: ${{ github.workspace }}
+      - name: Upload rootfs.tar.gz to release
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./rootfs.tar.gz
-          asset_name: rootfs.tar.gz
-          asset_content_type: application/gzip
+          name: rootfs
+          path: ./rootfs.tar.gz
